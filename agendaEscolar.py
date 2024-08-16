@@ -16,7 +16,7 @@ ventana.geometry('600x400')
 # Crear la barra de menú
 barra_menu = tk.Menu(ventana)
 ventana.config(menu=barra_menu)
-menu_archivo = tk.Menu(barra_menu)
+menu_archivo = tk.Menu(barra_menu,tearoff=0)
 barra_menu.add_cascade(label="Archivo", menu=menu_archivo)
 menu_archivo.add_command(label="Nuevo", command=lambda: nuevo_archivo())
 menu_archivo.add_command(label="Guardar", command=lambda: guardar_datos())
@@ -76,6 +76,8 @@ def abrir_ventana_agregar_materias():
     entrada_nombre_materia = ttk.Entry(ventana_materia)
     entrada_nombre_materia.pack(padx=10, pady=5)
 
+    entrada_nombre_materia.focus_set()
+
     def agregar_materia_desde_emergente():
         nombre_materia = entrada_nombre_materia.get()
         materias.append(nombre_materia)
@@ -86,6 +88,13 @@ def abrir_ventana_agregar_materias():
 
     button_agregar = ttk.Button(ventana_materia, text="Agregar materia", command=agregar_materia_desde_emergente)
     button_agregar.pack(pady=10)
+
+    # Función para manejar la tecla Enter
+    def manejar_tecla(event):
+      button_agregar.invoke() 
+
+    # Vincular la tecla Enter al evento de la ventana
+    ventana_materia.bind('<Return>', manejar_tecla)
 
 def actualizar_listbox_materias():
     lista_materias.delete(0, tk.END)
@@ -106,6 +115,19 @@ def eliminar_materia():
 button_eliminar_materia = ttk.Button(frame_left, text="Eliminar Materia", command=eliminar_materia)
 button_eliminar_materia.pack(side="right", padx=5, pady=5)
 
+# Filtro de tareas que se visualizan al seleccionar una materia
+def materia_seleccionada(event):
+    seleccion = lista_materias.curselection()
+    if seleccion:
+        index = seleccion[0]
+        nombre_materia = lista_materias.get(index)
+        lista_tareas.delete(0, tk.END)
+        for tarea, fecha, materia in tareas:
+          if nombre_materia == materia:
+            lista_tareas.insert(tk.END, f"{tarea} (Límite: {fecha.strftime('%Y-%m-%d %H:%M')})  ({materia})")
+
+lista_materias.bind("<<ListboxSelect>>", materia_seleccionada)
+
 # Agregar un Label y Listbox en la segunda columna
 label_tareas = ttk.Label(frame_right, text="Tareas Pendientes")
 label_tareas.pack(pady=5, anchor="n")
@@ -118,7 +140,7 @@ tareas = []
 def abrir_ventana_agregar_tarea():
     ventana_tarea = tk.Toplevel(ventana)
     ventana_tarea.title("Agregar Tarea")
-    ventana_tarea.geometry("210x200")
+    ventana_tarea.geometry("220x260")
     ventana_tarea.resizable(width=0, height=0)
 
     label_nombre_tarea = ttk.Label(ventana_tarea, text="Nombre de la Tarea:")
@@ -126,6 +148,15 @@ def abrir_ventana_agregar_tarea():
 
     entrada_nombre_tarea = ttk.Entry(ventana_tarea)
     entrada_nombre_tarea.pack(padx=10, pady=5)
+    entrada_nombre_tarea.focus_set()
+
+    label_materia_correspondiente = ttk.Label(ventana_tarea, text="Materia a la que corresponde:")
+    label_materia_correspondiente.pack(padx=10, pady=5)
+
+    variable_menu_materias = tk.StringVar(ventana_tarea)
+    menu_materias = ttk.Combobox(ventana_tarea,values=materias,state='readonly',width=21)
+    menu_materias.set("Selecciona una materia")
+    menu_materias.pack(padx=10, pady=5)
 
     label_fecha_limite = ttk.Label(ventana_tarea, text="Fecha Límite:")
     label_fecha_limite.pack(padx=10, pady=5)
@@ -138,19 +169,22 @@ def abrir_ventana_agregar_tarea():
 
     spinbox_hora = ttk.Spinbox(ventana_tarea, from_=0, to=23, width=5, format="%02.0f")
     spinbox_hora.pack(side="left", padx=(10, 2), pady=5)
+    spinbox_hora.set(00)
 
     spinbox_minuto = ttk.Spinbox(ventana_tarea, from_=0, to=59, width=5, format="%02.0f")
     spinbox_minuto.pack(side="left", padx=(2, 10), pady=5)
+    spinbox_minuto.set(00)
 
     def agregar_tarea_desde_emergente():
         nombre_tarea = entrada_nombre_tarea.get()
         fecha_limite = entrada_fecha_limite.get_date()
         hora_limite = int(spinbox_hora.get())
         minuto_limite = int(spinbox_minuto.get())
+        materia_correspondiente = menu_materias.get()
         
-        if nombre_tarea and fecha_limite:
+        if nombre_tarea and fecha_limite and materia_correspondiente!="Selecciona una materia":
             fecha_hora_limite = datetime.datetime.combine(fecha_limite, datetime.time(hora_limite, minuto_limite))
-            tareas.append((nombre_tarea, fecha_hora_limite))
+            tareas.append((nombre_tarea, fecha_hora_limite, materia_correspondiente))
             tareas.sort(key=lambda x: x[1])
             actualizar_listbox_tarea()
             global cambios_no_guardados
@@ -160,10 +194,17 @@ def abrir_ventana_agregar_tarea():
     button_agregar = ttk.Button(ventana_tarea, text="Agregar Tarea", command=agregar_tarea_desde_emergente)
     button_agregar.pack(pady=10)
 
+    # Función para manejar la tecla Enter
+    def manejar_tecla(event):
+      button_agregar.invoke() 
+
+    # Vincular la tecla Enter al evento de la ventana
+    ventana_tarea.bind('<Return>', manejar_tecla)
+
 def actualizar_listbox_tarea():
     lista_tareas.delete(0, tk.END)
-    for tarea, fecha in tareas:
-        lista_tareas.insert(tk.END, f"{tarea} (Límite: {fecha.strftime('%Y-%m-%d %H:%M')})")
+    for tarea, fecha, materia in tareas:
+        lista_tareas.insert(tk.END, f"{tarea} (Límite: {fecha.strftime('%Y-%m-%d %H:%M')})  ({materia})")
 
 button_agregar_tarea = ttk.Button(frame_right, text="Agregar Tarea", command=abrir_ventana_agregar_tarea)
 button_agregar_tarea.pack(side="left", padx=5, pady=5)
@@ -179,10 +220,22 @@ def eliminar_tarea():
 button_eliminar_tarea = ttk.Button(frame_right, text="Eliminar Tarea", command=eliminar_tarea)
 button_eliminar_tarea.pack(side="right", padx=5, pady=5)
 
+# Menú emergente con clic derecho para tener una vista general de las materias
+menu_vistas = tk.Menu(ventana,tearoff=0)
+menu_vistas.add_command(label="Ver todas las tareas", command= actualizar_listbox_tarea)
+
+def mostrar_menu_vistas(event):
+    # Posición del clic derecho
+    x, y = event.x_root, event.y_root
+    # Mostrar el menú en la posición del clic derecho
+    menu_vistas.post(x, y)
+
+lista_tareas.bind("<Button-3>", mostrar_menu_vistas)
+
 def guardar_datos():
     archivo = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
     if archivo:
-        datos = {"tareas": [(tarea, fecha.strftime('%Y-%m-%d %H:%M')) for tarea, fecha in tareas], "materias": materias}
+        datos = {"tareas": [(tarea, fecha.strftime('%Y-%m-%d %H:%M'), materia) for tarea, fecha, materia in tareas], "materias": materias}
         with open(archivo, "w") as file:
             json.dump(datos, file)
         global cambios_no_guardados
@@ -194,7 +247,7 @@ def cargar_datos():
         with open(archivo, "r") as file:
             datos = json.load(file)
             global tareas, materias
-            tareas = [(tarea, datetime.datetime.strptime(fecha, '%Y-%m-%d %H:%M')) for tarea, fecha in datos["tareas"]]
+            tareas = [(tarea, datetime.datetime.strptime(fecha, '%Y-%m-%d %H:%M'), materia) for tarea, fecha, materia in datos["tareas"]]
             materias = datos["materias"]
             actualizar_listbox_tarea()
             actualizar_listbox_materias()
